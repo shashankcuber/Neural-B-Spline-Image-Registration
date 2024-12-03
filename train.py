@@ -13,7 +13,7 @@ import wandb
 import matplotlib.pyplot as plt
 import pickle
 
-wandb.login(key = "cddbb81e657d85514600791c422ff35c68117a53")
+wandb.login(key = "")
 
 class Dataset(data.Dataset):
     """
@@ -52,9 +52,10 @@ class Registration_Net(nn.Module):
         self.input_channels = input_channels
         self.output_channels = output_channels
         self.device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-        self.model = nb.IRnet(image_size=(1,256,256), num_points=train_config['num_points'], num_patches=train_config['num_patches'], device=self.device).to(self.device)
+        self.model = nb.IRnet(image_size=(3,256,256), num_points=train_config['num_points'], num_patches=train_config['num_patches'], device=self.device).to(self.device)
 
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=train_config['lr'], momentum=0.99)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=train_config['lr'], momentum=train_config['momentum'])
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=train_config['lr'])
         self.params = {'batch_size': 4,
                         'shuffle': True,
                         'num_workers': 1,
@@ -72,6 +73,7 @@ class Registration_Net(nn.Module):
         y_, x_ = np.meshgrid(np.arange(0, 256), np.arange(0, 256), indexing='ij')
         y_, x_ = 2.0*y_/255.0 - 1.0, 2.0*x_/255.0 - 1.0
         XY = torch.tensor(np.stack([x_,y_],axis=2),dtype=torch.float32).to(self.device)
+        XY = XY.expand(V.shape[0],-1,-1,-1)
         with torch.no_grad():
             normv2 = V[:,:,:,0]**2 + V[:,:,:,1]**2+1e-10
             m = torch.sqrt(torch.max(normv2))
@@ -82,7 +84,7 @@ class Registration_Net(nn.Module):
                 
         # Scale it (so it's close to 0)
         V = V / (2**n)
-        # V = V.permute(0, 2, 3, 1) # (B, H, W, 2)
+        V = V.permute(0, 2, 3, 1) # (B, H, W, 2)
         for itr in range(n):
             Vx = F.grid_sample(V[:,:,:,0:1].permute(0,3,1,2), 
                             XY+V, padding_mode='reflection',align_corners=True).permute(0,2,3,1)
@@ -117,7 +119,7 @@ class Registration_Net(nn.Module):
     def train_model(self, batch_moving, batch_fixed, lamda = 0.01):
         self.optimizer.zero_grad()
         batch_fixed, batch_moving = batch_fixed.to(self.device), batch_moving.to(self.device)
-        dense_field = self.model(batch_moving)
+        dense_field = self.model(batch_moving, batch_fixed)
         
         xyd, _ = self.ss_grid_gen(dense_field)
         xyd_ = self.normalize_dense_field(xyd)
@@ -135,10 +137,11 @@ class Registration_Net(nn.Module):
     def get_test_loss(self, batch_moving, batch_fixed, epoch, count):
         with torch.no_grad():
             batch_moving, batch_fixed = batch_moving.to(self.device), batch_fixed.to(self.device)
-            dense_field = self.model(batch_moving)
+            dense_field = self.model(batch_moving, batch_fixed)
             
-            xyd, xy_ = self.ss_grid_gen(dense_field)
+            xyd, xy = self.ss_grid_gen(dense_field)
             xyd_ = self.normalize_dense_field(xyd)
+            # xy_ = self.normalize_dense_field(xy)
 
             registered_image = F.grid_sample(batch_moving.permute(0, 3, 1, 2), xyd_, mode='bilinear', padding_mode='reflection', align_corners=True)
             
@@ -146,8 +149,8 @@ class Registration_Net(nn.Module):
 
             val_dice_score = self.nb.dice_score(registered_image.permute(0, 2, 3, 1), batch_fixed)
             
-            if count == 3:
-                nb.visualise_results(batch_fixed[0], batch_moving[0], registered_image[0].permute(1, 2, 0), xy_, dense_field[0], epoch, self.train_config['num_points'])
+            if count == 0:
+                nb.visualise_results(batch_fixed[0], batch_moving[0], registered_image[0].permute(1, 2, 0), xy, xyd_[0], epoch, self.train_config['num_points'])
             
             # nb.visualise_results(batch_fixed[0], batch_moving[0], registered_image[0], xy_, dense_field[0], epoch)
             return val_loss, val_dice_score
@@ -157,8 +160,8 @@ def main():
 
     # DATA_PATH = './fire-fundus-image-registration-dataset/'
     params = {'batch_size': 1,
-                'shuffle': False,
-                'num_workers': 6,
+                'shuffle': True,
+                'num_workers': 2,
                 'worker_init_fn': np.random.seed(42)
                 }
     
@@ -177,22 +180,24 @@ def main():
     with open('partition.pkl', 'rb') as f:
         partition = pickle.load(f)
 
+    print(len(partition['train']))
+    print(len(partition['validation']))
     # Generators
     training_set = Dataset(partition['train'])
     training_generator = data.DataLoader(training_set, **params)
 
     validation_set = Dataset(partition['validation'])
-    validation_generator = data.DataLoader(validation_set, **params)
+    validation_generator = data.DataLoader(validation_set, batch_size=1, shuffle=False)
 
-    print(len(training_generator))
-    print(len(validation_generator))
+    # print(len(training_generator))
+    # print(len(validation_generator))
 
     train_config = {
         "epochs": 10,
         "batch_size": 4,
         "lr": 1e-4,
         "momentum": 0.99,
-        "num_points": 200,
+        "num_points": 10,
         "num_patches": 32,
         "device": "cuda:1",
         "train_size": len(training_generator),
@@ -201,7 +206,7 @@ def main():
 
     rnet = Registration_Net(input_channels=3, output_channels=2, train_config=train_config)
 
-    with wandb.init(project="B-spine-Image-Registration", config=train_config, name=f"B-spline-Image-Registration-{train_config['num_points']}-num_points") as run:
+    with wandb.init(project="Neural-B-spline-Image-Registration", config=train_config, name=f"Neural-Bspline-{train_config['num_points']}-num_points") as run:
         min_val_loss = float('inf')
         for epoch in range(train_config["epochs"]):
             start_time = time.time()
@@ -213,8 +218,8 @@ def main():
                 loss, dice = rnet.train_model(batch_moving, batch_fixed)
                 train_dice_score += dice.data
                 train_loss += loss.data
-            avg_train_loss = train_loss / len(training_set)
-            avg_train_dice_score = train_dice_score / len(training_set)
+            avg_train_loss = train_loss / len(training_generator)
+            avg_train_dice_score = train_dice_score / len(training_generator)
             print("Epoch: ", epoch, "Train Loss: ", avg_train_loss, "Train Dice Score: ", avg_train_dice_score)
 
             start_time = time.time()
@@ -229,7 +234,7 @@ def main():
             avg_val_dice_score = val_dice_score / len(validation_set)
             if avg_val_loss < min_val_loss:
                 min_val_loss = avg_val_loss
-                torch.save(rnet.model.state_dict(), f"best_model_{train_config['num_points']}_num_points.pth")
+                torch.save(rnet.model.state_dict(), f"./best_model/best_model_{train_config['num_points']}_num_points.pth")
 
             print("Epoch: ", epoch, "Validation Loss: ", avg_val_loss, "Validation Dice Score: ", avg_val_dice_score)
             wandb.log(
