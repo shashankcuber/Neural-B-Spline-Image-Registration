@@ -24,7 +24,7 @@ def b_spline_basis(x, order):
     
     return (x / order) * b_p_minus_1_x + ((order + 1 - x) / order) * b_p_minus_1_x_minus_1
 
-def b_spline_interpolation(control_points, displacements, image_size=(256, 256)):
+def b_spline_interpolation(control_points, displacements, image_size=(3, 256, 256)):
     """
     Perform B-spline interpolation to generate a dense deformation field from sparse displacements.
     
@@ -71,8 +71,8 @@ def b_spline_interpolation(control_points, displacements, image_size=(256, 256))
             weight_sum[b, 0] += weights  # Sum of weights for normalization
 
     # Normalize the dense field by the sum of weights
-    dense_field[:, 0] /= (weight_sum[:, 0] + 1e-5)  # Normalize dx
-    dense_field[:, 1] /= (weight_sum[:, 0] + 1e-5)  # Normalize dy
+    dense_field[:, 0] /= (weight_sum[:, 0] + 1e-6)  # Normalize dx
+    dense_field[:, 1] /= (weight_sum[:, 0] + 1e-6)  # Normalize dy
 
 
     return dense_field  # Output shape: (B, 2, H, W)

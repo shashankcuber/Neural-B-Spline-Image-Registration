@@ -31,7 +31,7 @@ class VoxelMorph():
     Voxelmorph classes. It makes training easier and is scalable.
     """
 
-    def __init__(self, input_dims, is_2d=False, use_gpu=False):
+    def __init__(self, input_dims, is_2d=False, use_gpu=True):
         self.dims = input_dims
         if is_2d:
             self.vm = vm2d
@@ -39,14 +39,17 @@ class VoxelMorph():
         else:
             self.vm = vm3d
             self.voxelmorph = vm3d.VoxelMorph3d(input_dims[0] * 2, use_gpu)
-        self.optimizer = optim.SGD(
-            self.voxelmorph.parameters(), lr=1e-4, momentum=0.99)
+            
+        self.optimizer = optim.SGD(self.voxelmorph.parameters(), lr=1e-4, momentum=0.99)
+        # self.optimizer = optim.Adam(
+        #     self.voxelmorph.parameters(), lr=1e-3)
         self.params = {'batch_size': 3,
                        'shuffle': True,
                        'num_workers': 6,
                        'worker_init_fn': np.random.seed(42)
                        }
         self.device = torch.device("cuda:1" if use_gpu else "cpu")
+        print(self.device)
 
     def check_dims(self, x):
         try:
@@ -133,6 +136,8 @@ class VoxelMorph():
 
     def get_test_loss(self, batch_moving, batch_fixed, epoch, count, n=9, lamda=0.01):
         with torch.set_grad_enabled(False):
+            batch_fixed, batch_moving = batch_fixed.to(
+                self.device), batch_moving.to(self.device)
             registered_image, flow = self.voxelmorph(batch_moving, batch_fixed)
             xyd, xy_ = self.ss_grid_gen(flow)
             xyd_ = self.normalize_dense_field(xyd)
@@ -180,11 +185,11 @@ def main():
     to demostrate the working of the API.
     '''
     vm = VoxelMorph(
-        (3, 256, 256), is_2d=True)  # Object of the higher level class
+        (3, 256, 256), is_2d=True, use_gpu=True)# Object of the higher level class
     DATA_PATH = './fire-fundus-image-registration-dataset/'
     params = {'batch_size': 1,
               'shuffle': True,
-              'num_workers': 6,
+              'num_workers': 4,
               'worker_init_fn': np.random.seed(42)
               }
 
@@ -202,7 +207,7 @@ def main():
     training_generator = data.DataLoader(training_set, **params)
 
     validation_set = Dataset(partition['validation'])
-    validation_generator = data.DataLoader(validation_set, **params)
+    validation_generator = data.DataLoader(validation_set, batch_size=1, shuffle=False)
 
     print(len(training_set), len(validation_set))
     train_config = {'lr' :1e-4,
@@ -210,7 +215,7 @@ def main():
         'epochs' :10,}    
     
     # Loop over epochs
-    with wandb.init(project="B-spine-Image-Registration", config=train_config, name=f"Voxel-Image-Registration") as run:
+    with wandb.init(mode='disabled',project="Neural-B-spline-Image-Registration", config=train_config, name=f"Voxel-Image-Registration") as run:
         min_val_loss = float('inf')
         for epoch in range(max_epochs):
             start_time = time.time()
@@ -235,17 +240,17 @@ def main():
                 val_loss += loss.data
                 count += 1
             print('After', epoch + 1, 'epochs, the Average validations loss is ', val_loss *
-                params['batch_size'] / len(validation_set), 'and average DICE score is', val_dice_score.data * params['batch_size'] / len(validation_set))
+                1/ len(validation_set), 'and average DICE score is', val_dice_score.data * 1 / len(validation_set))
             
-            avg_val_loss = val_loss * params['batch_size'] / len(validation_set)
+            avg_val_loss = val_loss * 1 / len(validation_set)
             
             if avg_val_loss < min_val_loss:
                 min_val_loss = avg_val_loss
-                torch.save(vm.voxelmorph.state_dict(), 'best_model-voxel.pth')
+                # torch.save(vm.voxelmorph.state_dict(), 'best_model-voxel.pth')
             
             wandb.log({"Train Loss": train_loss * params['batch_size'] / len(training_set),
                        "Train Dice Score": train_dice_score.data * params['batch_size'] / len(training_set),
-                       "Validation Loss": val_loss * params['batch_size'] / len(validation_set),
-                       "Validation Dice Score": val_dice_score.data * params['batch_size'] / len(validation_set)})
+                       "Validation Loss": val_loss * 1 / len(validation_set),
+                       "Validation Dice Score": val_dice_score.data * 1 / len(validation_set)})
 if __name__ == "__main__":
     main()

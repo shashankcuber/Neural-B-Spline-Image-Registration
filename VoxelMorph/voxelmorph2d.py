@@ -234,7 +234,7 @@ class VoxelMorph2d(nn.Module):
             self.spatial_transform = self.spatial_transform.to(device='cuda:1')
 
     def forward(self, moving_image, fixed_image):
-        x = torch.cat([moving_image, fixed_image], dim=3).permute(0,3,1,2)
+        x = torch.cat([moving_image, fixed_image], dim=3).permute(0,3,1,2).to(device='cuda:1')
         deformation_matrix = self.unet(x).permute(0,2,3,1)
         registered_image = self.spatial_transform(moving_image, deformation_matrix)
         # print(registered_image.shape)
@@ -317,9 +317,11 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch):
     axs[2].set_title('Registered Image')
 
 
-    d_ = xyd - xy_
-    df= 8
+    # d_ = xyd - xy_
+    d_ = xyd
+    df= 6
     axs[3].quiver(d_.cpu().data[::df, ::df, 0], d_.cpu().data[::df, ::df, 1], scale=1, scale_units='xy', color='r')
+    # print(xyd.shape)
     # def plot_grid(x,y, ax=None, **kwargs):
     #     # ax = ax or plt.gca()
     #     segs1 = np.stack((x,y), axis=2)
@@ -334,8 +336,8 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch):
     # h_resize = int(down_factor*h_)
     # w_resize = int(down_factor*w_)
 
-    # # print(xy_.shape)
-    # # print(xyd.shape)
+    # print(xy_.shape)
+    # print(xyd.shape)
 
     # grid_x = resize(xy_.cpu()[:,:,0].numpy(),(h_resize,w_resize))
     # grid_y = resize(xy_.cpu()[:,:,1].numpy(),(h_resize,w_resize))
@@ -343,12 +345,12 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch):
     # disty = resize(xyd.cpu()[:,:,1].detach().numpy(),(h_resize,w_resize))
 
     # # fig, ax = plt.subplots()
-    # # print(grid_x.shape)
-    # # print(grid_y.shape)
-    # # print(distx.shape)
-    # # print(disty.shape)
+    # print(grid_x.shape)
+    # print(grid_y.shape)
+    # print(distx.shape)
+    # print(disty.shape)
 
     # plot_grid(grid_x,grid_y, ax=axs[3],  color="lightgrey")
     # plot_grid(distx, disty, ax=axs[3], color="C0")
 
-    plt.savefig(f'./plots/test-1/Voxelmoprh-epoch-{epoch}.png')
+    plt.savefig(f'./plots/test-1/Voxelmoprh-epoch-{epoch+1}.png')
