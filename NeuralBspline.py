@@ -153,8 +153,8 @@ def visualize_control_points(images, control_points, image_size, batch_idx=0):
 
         # Plot the image
         plt.figure(figsize=(8, 8))
-        plt.imshow(image)
-        plt.scatter(points[:, 0], points[:, 1], c='blue', marker='o')  # Overlay control points
+        plt.imshow(image, cmap='gray')
+        plt.scatter(points[:, 0], points[:, 1], c='red', marker='o')  # Overlay control points
         # plt.title("Control Points Visualization")
         plt.axis("off")
         # plt.show()
@@ -171,7 +171,7 @@ class IRnet(nn.Module):
         self.hidden_dim = 64
         # self.dnet = DisplacementNet(input_dim=2).to(self.device)
         self.coord_embed_net = ControlPointEncoder(hidden_dim=self.hidden_dim).to(self.device)
-        self.feature_extractor = FeatureExtractor(in_ch = 2*3, out_ch=self.hidden_dim).to(self.device)
+        self.feature_extractor = FeatureExtractor(in_ch = 2*1, out_ch=self.hidden_dim).to(self.device)
         self.dnet = DisplacementNet(2*self.hidden_dim).to(self.device)
 
     def forward(self, moving_image, fixed_image):
@@ -250,11 +250,11 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch, num_points):
     pred = (pred * 255.0).astype(np.uint8)
 
     fig, axs = plt.subplots(1, 4, figsize=(15, 5))
-    axs[0].imshow(fixed)
+    axs[0].imshow(fixed, cmap='gray')
     axs[0].set_title('Fixed Image')
-    axs[1].imshow(moving)
+    axs[1].imshow(moving, cmap='gray')
     axs[1].set_title('Moving Image')
-    axs[2].imshow(pred)
+    axs[2].imshow(pred, cmap='gray')
     axs[2].set_title('Registered Image')
     d_ = xyd
     d_ = d_
@@ -295,4 +295,4 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch, num_points):
     # plot_grid(grid_x,grid_y, ax=axs[3],  color="lightgrey")
     # plot_grid(distx, disty, ax=axs[3], color="C0")
 
-    plt.savefig(f'./plots/test-1/{num_points}/Neural-Bspline-{epoch}-num_points-{num_points}.png')
+    # plt.savefig(f'./plots/test-1/{num_points}/Neural-Bspline-{epoch}-num_points-{num_points}.png')

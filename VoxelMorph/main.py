@@ -40,7 +40,7 @@ class VoxelMorph():
             self.vm = vm3d
             self.voxelmorph = vm3d.VoxelMorph3d(input_dims[0] * 2, use_gpu)
             
-        self.optimizer = optim.SGD(self.voxelmorph.parameters(), lr=1e-4, momentum=0.99)
+        self.optimizer = optim.SGD(self.voxelmorph.parameters(), lr=1e-3, momentum=0.99)
         # self.optimizer = optim.Adam(
         #     self.voxelmorph.parameters(), lr=1e-3)
         self.params = {'batch_size': 3,
@@ -144,7 +144,7 @@ class VoxelMorph():
             val_loss = self.vm.vox_morph_loss(
                 registered_image, batch_fixed, n, lamda)
             val_dice_score = self.vm.dice_score(registered_image, batch_fixed)
-            if count == 0:
+            if count == 1 and epoch%10==0:
                 self.vm.visualise_results(
                 batch_fixed[0], batch_moving[0], registered_image[0], xy_, xyd_[0], epoch)
             return val_loss, val_dice_score
@@ -172,6 +172,11 @@ class Dataset(data.Dataset):
         ID = self.list_IDs[index]
 
         # Load data and get label
+        seg_path = '../FUNDUS_seg_output/'
+        fixed_image = torch.Tensor( resize(io.imread(seg_path + ID + '_1.png'), (256, 256, 1)))
+        moving_image = torch.Tensor( resize(io.imread(seg_path + ID + '_2.png'), (256, 256, 1)))
+        return fixed_image, moving_image
+    
         fixed_image = torch.Tensor(
             resize(io.imread('./fire-fundus-image-registration-dataset/' + ID + '_1.jpg'), (256, 256, 3)))
         moving_image = torch.Tensor(
@@ -185,15 +190,15 @@ def main():
     to demostrate the working of the API.
     '''
     vm = VoxelMorph(
-        (3, 256, 256), is_2d=True, use_gpu=True)# Object of the higher level class
+        (1, 256, 256), is_2d=True, use_gpu=True)# Object of the higher level class
     DATA_PATH = './fire-fundus-image-registration-dataset/'
-    params = {'batch_size': 1,
+    params = {'batch_size': 4,
               'shuffle': True,
               'num_workers': 4,
               'worker_init_fn': np.random.seed(42)
               }
 
-    max_epochs = 10
+    max_epochs = 100
     # filename = list(set([x.split('_')[0]
     #                      for x in os.listdir('./fire-fundus-image-registration-dataset/')]))
     # partition = {}
@@ -210,12 +215,12 @@ def main():
     validation_generator = data.DataLoader(validation_set, batch_size=1, shuffle=False)
 
     print(len(training_set), len(validation_set))
-    train_config = {'lr' :1e-4,
+    train_config = {'lr' :1e-3,
         'momentum' :0.99,
-        'epochs' :10,}    
+        'epochs' :500,}    
     
     # Loop over epochs
-    with wandb.init(mode='disabled',project="Neural-B-spline-Image-Registration", config=train_config, name=f"Voxel-Image-Registration") as run:
+    with wandb.init(project="Neural-B-spline-Registration", config=train_config, name=f"Voxel-Image-Registration") as run:
         min_val_loss = float('inf')
         for epoch in range(max_epochs):
             start_time = time.time()
@@ -246,7 +251,7 @@ def main():
             
             if avg_val_loss < min_val_loss:
                 min_val_loss = avg_val_loss
-                # torch.save(vm.voxelmorph.state_dict(), 'best_model-voxel.pth')
+                torch.save(vm.voxelmorph.state_dict(), 'best_model-voxel-seg.pth')
             
             wandb.log({"Train Loss": train_loss * params['batch_size'] / len(training_set),
                        "Train Dice Score": train_dice_score.data * params['batch_size'] / len(training_set),
