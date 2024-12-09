@@ -308,12 +308,16 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch):
     moving = moving.cpu().detach().numpy()
     pred = pred.cpu().detach().numpy()
 
+    fixed = (fixed * 255.0).astype(np.uint8)
+    moving = (moving * 255.0).astype(np.uint8)
+    pred = (pred * 255.0).astype(np.uint8)
+    
     fig, axs = plt.subplots(1, 4, figsize=(15, 5))
-    axs[0].imshow(fixed)
+    axs[0].imshow(fixed, cmap='gray')
     axs[0].set_title('Fixed Image')
-    axs[1].imshow(moving)
+    axs[1].imshow(moving, cmap='gray')
     axs[1].set_title('Moving Image')
-    axs[2].imshow(pred)
+    axs[2].imshow(pred, cmap='gray')
     axs[2].set_title('Registered Image')
 
 
@@ -353,4 +357,4 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch):
     # plot_grid(grid_x,grid_y, ax=axs[3],  color="lightgrey")
     # plot_grid(distx, disty, ax=axs[3], color="C0")
 
-    plt.savefig(f'./plots/test-1/Voxelmoprh-epoch-{epoch+1}.png')
+    plt.savefig(f'./plots/Voxelmoprh-epoch-{epoch+1}.png')
