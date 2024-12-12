@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from VoxelMorph.voxelmorph2d import SpatialTransformation
 from b_spline_interpolate import b_spline_interpolation
-# import neurite as ne
-# torch.manual_seed(42)
-# torch.cuda.manual_seed(42)
+
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
 
 def sample_control_points(image, num_points):
     """
@@ -169,7 +169,6 @@ class IRnet(nn.Module):
         # self.spatial_transform = SpatialTransformation(use_gpu=True).to(device)
         self.device = device
         self.hidden_dim = 64
-        # self.dnet = DisplacementNet(input_dim=2).to(self.device)
         self.coord_embed_net = ControlPointEncoder(hidden_dim=self.hidden_dim).to(self.device)
         self.feature_extractor = FeatureExtractor(in_ch = 2*1, out_ch=self.hidden_dim).to(self.device)
         self.dnet = DisplacementNet(2*self.hidden_dim).to(self.device)
@@ -204,11 +203,7 @@ class IRnet(nn.Module):
 
 def dice_score(pred, target):
     """
-    This definition generalize to real valued pred and target vector.
-    This should be differentiable.
-    pred: tensor with first dimension as batch
-    target: tensor with first dimension as batch
-
+    Compute the Dice coefficient for a batch of predicted masks and target masks.
     """
     top = 2 *  torch.sum(pred * target, [1, 2, 3])
     union = torch.sum(pred + target, [1, 2, 3])
@@ -228,12 +223,10 @@ def smooothing_loss(y_pred):
     return d/2.0
 
 def vox_morph_loss(y, ytrue, lamda=0.01):
+    """
+    Taken from VoxelMorph implementation but modified to include MSE loss only.
+    """
     mse = F.mse_loss(y, ytrue)
-    # cc = cross_correlation_loss(y, ytrue, n)
-    # sm = smooothing_loss(y)
-    #print("CC Loss", cc, "Gradient Loss", sm)
-    # loss = -1.0 * cc + lamda * sm
-    # loss = mse + lamda * sm
     loss = mse
     return loss
 
@@ -260,39 +253,5 @@ def visualise_results(fixed, moving, pred, xy_, xyd, epoch, num_points):
     d_ = d_
     df= 6
     axs[3].quiver(d_.cpu().data[::df, ::df, 0], d_.cpu().data[::df, ::df, 1], scale=2, scale_units='xy', color='blue')
-    # def plot_grid(x,y, ax=None, **kwargs):
-    #     # ax = ax or plt.gca()
-    #     segs1 = np.stack((x,y), axis=2)
-    #     segs2 = segs1.transpose(1,0,2)
-    #     ax.add_collection(LineCollection(segs1, **kwargs))
-    #     ax.add_collection(LineCollection(segs2, **kwargs))
-    #     ax.autoscale()
-
-    # down_factor= 1/16.0
-    # h_ = fixed.shape[0]
-    # w_ = fixed.shape[1]
-    # h_resize = int(down_factor*h_)
-    # w_resize = int(down_factor*w_)
-
-    
-    # # print(xy_.shape) 
-    # xy_ = xy_.squeeze(0)   
-    # # print(xyd.shape)
-    # grid_x = resize(xy_.cpu()[:,:,0].numpy(),(h_resize,w_resize))
-    # grid_y = resize(xy_.cpu()[:,:,1].numpy(),(h_resize,w_resize))
-    # distx = resize(xyd.cpu()[:,:,0].detach().numpy(),(h_resize,w_resize))
-    # disty = resize(xyd.cpu()[:,:,1].detach().numpy(),(h_resize,w_resize))
-
-    # distx += grid_x
-    # disty += grid_y
-    # # print(grid_x.shape)
-    # # print(grid_y.shape)
-    # # print(distx.shape)
-    # # print(disty.shape)
-
-
-    # # fig, ax = plt.subplots()
-    # plot_grid(grid_x,grid_y, ax=axs[3],  color="lightgrey")
-    # plot_grid(distx, disty, ax=axs[3], color="C0")
 
     # plt.savefig(f'./plots/test-1/{num_points}/Neural-Bspline-{epoch}-num_points-{num_points}.png')
