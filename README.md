@@ -68,16 +68,6 @@ This implementation includes a comparison with VoxelMorph:
 - Base implementation: [VoxelMorph-PyTorch](https://github.com/Hsankesara/VoxelMorph-PyTorch)
 - Modification: Replaced NCC loss with MSE loss for comparison purposes
 
-## Citation
-
-If you use this code in your research, please cite:
-```
-Citation information to be added
-```
-
-## License
-
-Add your license information here
 
 ## Acknowledgments
 
