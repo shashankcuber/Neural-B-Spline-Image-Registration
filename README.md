@@ -82,4 +82,3 @@ Add your license information here
 ## Acknowledgments
 
 - VoxelMorph implementation by [Hsankesara](https://github.com/Hsankesara/VoxelMorph-PyTorch)
-- FIRE FUNDUS Dataset providers
