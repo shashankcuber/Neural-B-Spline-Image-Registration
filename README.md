@@ -14,7 +14,6 @@ A deep learning-based medical image registration approach using B-spline transfo
 Clone the repository:
 ```bash
 git clone https://github.com/your-username/neural-bspline.git
-cd neural-bspline
 ```
 
 ### Running the Algorithm
