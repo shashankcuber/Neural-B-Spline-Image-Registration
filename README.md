@@ -55,7 +55,7 @@ Contains blood vessel segmentation masks for both fixed and moving images (FIRE-
 
 ## Output
 
-The algorithm saves all plots, figures, and their corresponding control points in:
+The algorithm saves all plots in:
 ```
 plots/test-1/<num_points>/
 ```
