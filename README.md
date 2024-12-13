@@ -1,4 +1,4 @@
-# Neural-Bspline Registration Algorithm
+# Neural-Bspline Registration Algorithm (RADDI-514 Project)
 
 A deep learning-based medical image registration approach using B-spline transformation.
 
